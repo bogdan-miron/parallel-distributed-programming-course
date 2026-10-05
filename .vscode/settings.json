@@ -1,0 +1,12 @@
+{
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+  "files.watcherExclude": { "**/data/**": true, "**/build/**": true },
+  "search.exclude": { "**/data/**": true, "**/build/**": true, "teacher_materials": true },
+  "editor.tabSize": 4,
+  "[makefile]": { "editor.insertSpaces": false },
+  "C_Cpp.default.cppStandard": "c++17",
+  "C_Cpp.default.compilerPath": "/usr/bin/g++",
+  "terminal.integrated.defaultProfile.linux": "bash"
+}

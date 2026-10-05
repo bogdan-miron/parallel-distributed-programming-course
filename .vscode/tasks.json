@@ -1,0 +1,47 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "lab: build",
+      "type": "shell",
+      "command": "bash ${workspaceFolder}/tools/lab.sh build",
+      "options": { "cwd": "${fileDirname}" },
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": ["$gcc"]
+    },
+    {
+      "label": "lab: demo",
+      "type": "shell",
+      "command": "bash ${workspaceFolder}/tools/lab.sh demo",
+      "options": { "cwd": "${fileDirname}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "lab: full benchmark",
+      "type": "shell",
+      "command": "bash ${workspaceFolder}/tools/lab.sh bench",
+      "options": { "cwd": "${fileDirname}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "lab: report",
+      "type": "shell",
+      "command": "bash ${workspaceFolder}/tools/lab.sh report",
+      "options": { "cwd": "${fileDirname}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "lab: build documentation",
+      "type": "shell",
+      "command": "bash ${workspaceFolder}/tools/lab.sh doc",
+      "options": { "cwd": "${fileDirname}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "lab: check tools",
+      "type": "shell",
+      "command": "bash ${workspaceFolder}/tools/lab.sh doctor",
+      "problemMatcher": []
+    }
+  ]
+}

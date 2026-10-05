@@ -1,0 +1,10 @@
+# keep unix line endings so the scripts run in wsl
+*.sh text eol=lf
+*.py text eol=lf
+Makefile text eol=lf
+*.md text eol=lf
+*.cpp text eol=lf
+*.java text eol=lf
+*.cu text eol=lf
+*.docx binary
+*.png binary

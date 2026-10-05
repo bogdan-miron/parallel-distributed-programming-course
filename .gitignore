@@ -1,0 +1,27 @@
+# local notes and tooling, not part of the submission
+CLAUDE.md
+.claude/
+
+# material from the teacher
+teacher_materials/
+
+# generated data, build output, program output
+data/
+build/
+output*.txt
+*.o
+*.exe
+*.class
+*.out
+
+# editor and os junk
+.idea/
+__pycache__/
+~$*
+*.tmp
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.swp
+*.log
+.~lock.*#
