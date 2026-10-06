@@ -21,7 +21,6 @@ public class Main {
         }
     }
 
-    // true if both files have exactly the same content
     static boolean sameFile(String p1, String p2) throws IOException {
         return Arrays.equals(Files.readAllBytes(Paths.get(p1)), Files.readAllBytes(Paths.get(p2)));
     }
@@ -32,20 +31,17 @@ public class Main {
         int n = a.length;
         double[] c = new double[n];
 
-        // only the addition is timed, not the reading and writing
         long start = System.nanoTime();
         for (int i = 0; i < n; i++) c[i] = a[i] + b[i];
         long end = System.nanoTime();
 
         writeVector("output.txt", c);
 
-        // expected.txt is made by gen_data.py, it has the sum computed in python
         if (Files.exists(Paths.get("expected.txt")) && !sameFile("output.txt", "expected.txt")) {
             System.err.println("output.txt is different from expected.txt");
             System.exit(1);
         }
 
-        // the time has to be the last line, the script reads it from there
         System.out.println((double) (end - start) / 1E6);
     }
 }
