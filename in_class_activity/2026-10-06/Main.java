@@ -25,6 +25,21 @@ public class Main {
         }
     }
 
+    public static void sumBlock(double[] a, double[] b, double[] c) throws InterruptedException {
+        BlockThread[] threads = new BlockThread[P];
+        int size = a.length / P;
+        for (int t = 0; t < P; t++) {
+            int startId = t * size;
+            // the last thread also takes the rest when the length does not divide by P
+            int endId = (t == P - 1) ? a.length : startId + size;
+            threads[t] = new BlockThread(startId, endId, a, b, c);
+            threads[t].start();
+        }
+        for (int t = 0; t < P; t++) {
+            threads[t].join();
+        }
+    }
+
     public static void initializeArray(double[] arr){
         for (int i = 0; i < arr.length; i++) {
             arr[i] = random.nextDouble();
@@ -41,11 +56,18 @@ public class Main {
         return true;
     }
 
-    // prints the first elements, with the thread that computed each one (cyclic: index % P)
-    public static void show(double[] a, double[] b, double[] c, int count){
+    // the thread that computes index i
+    public static int owner(int i, boolean cyclic){
+        if (cyclic)
+            return i % P;
+        return Math.min(i / (N / P), P - 1);
+    }
+
+    // prints some elements, with the thread that computed each one
+    public static void show(double[] a, double[] b, double[] c, int[] indexes, boolean cyclic){
         System.out.println("index  thread  a + b = c");
-        for (int i = 0; i < count; i++) {
-            System.out.printf(Locale.US, "%5d  %6d  %.4f + %.4f = %.4f%n", i, i % P, a[i], b[i], c[i]);
+        for (int i : indexes) {
+            System.out.printf(Locale.US, "%5d  %6d  %.4f + %.4f = %.4f%n", i, owner(i, cyclic), a[i], b[i], c[i]);
         }
     }
 
@@ -68,6 +90,16 @@ public class Main {
         end = System.nanoTime();
         System.out.println("cyclic with " + P + " threads: " + (end - start) / 1E6 + " ms, correct: " + validateSum(a, b, c));
 
-        show(a, b, c, 10);
+        show(a, b, c, new int[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}, true);
+
+        c = new double[N];
+        start = System.nanoTime();
+        sumBlock(a, b, c);
+        end = System.nanoTime();
+        System.out.println("block with " + P + " threads: " + (end - start) / 1E6 + " ms, correct: " + validateSum(a, b, c));
+
+        // the first and last indexes and the ones around the first border between blocks
+        int size = N / P;
+        show(a, b, c, new int[]{0, 1, size - 2, size - 1, size, size + 1, N - 2, N - 1}, false);
     }
 }
