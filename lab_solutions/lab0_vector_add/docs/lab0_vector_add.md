@@ -34,6 +34,8 @@ Java:
 
 The time grows about linearly with n, as expected for a loop that touches every element once. Each step of 10 times more elements made the run about 11 or 12 times longer. The small extra could come from the vectors no longer fitting in the cache, but I did not test that.
 
+Java was slower than C++ at every size: about 11 times at n = 100000, 3.6 times at n = 1000000 and 1.4 times at n = 10000000. Every Java run is a new JVM, and the loop starts interpreted until the JIT compiles it, which is a fixed cost that matters less when the loop is longer. I did not measure the JIT separately, so this is my explanation and not a test.
+
 ## How I ran it
 
 I ran everything in WSL (Ubuntu) from VS Code. For each size, `scripts/run_all.sh` generated the files and called `bench.sh` with the compiled C++ program and then with the Java one, and the full run is `bash tools/lab.sh bench lab0_vector_add`. The tables above come straight from `results/cpp.csv` and `results/java.csv`.

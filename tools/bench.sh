@@ -33,10 +33,10 @@ if [ -z "$out" ] || [ $# -eq 0 ]; then
   exit 2
 fi
 
-# the program runs in another folder, so paths that exist here must become absolute
+# the program runs in another folder, so relative paths (with a slash in them) that exist here must become absolute
 cmd=()
 for a in "$@"; do
-  if [ -e "$a" ]; then cmd+=("$(realpath "$a")"); else cmd+=("$a"); fi
+  if [[ $a == */* && -e $a ]]; then cmd+=("$(realpath "$a")"); else cmd+=("$a"); fi
 done
 out=$(realpath -m "$out")
 

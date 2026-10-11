@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # builds the lab documentation (docx) from docs/<lab>.md
 # the markdown can use {{table:cpp}} and {{chart:cpp}} (filled from results/cpp.csv)
+# {{best:a:b:c}} and {{compare:a:b}} (short tables made by compare.py from results/a.csv, ...)
 # and {{machine}} (filled from results/machine.txt)
 # usage: python3 build_doc.py <lab_dir>
 import os
@@ -26,9 +27,20 @@ def table(name):
     return "\n".join(l for l in out.splitlines() if not l.startswith("chart saved"))
 
 
+def compare(mode, names):
+    files = [os.path.join(results, n + ".csv") for n in names]
+    for f in files:
+        if not os.path.exists(f):
+            sys.exit(f"missing {f}, run the benchmark first")
+    return subprocess.run(["python3", os.path.join(tools, "compare.py"), mode] + files,
+                          capture_output=True, text=True, check=True).stdout.strip()
+
+
 for md in sorted(f for f in os.listdir(docs) if f.endswith(".md")):
     text = open(os.path.join(docs, md), encoding="utf-8").read()
     text = re.sub(r"\{\{table:(\w+)\}\}", lambda m: table(m.group(1)), text)
+    text = re.sub(r"\{\{best:([\w:]+)\}\}", lambda m: compare("best", m.group(1).split(":")), text)
+    text = re.sub(r"\{\{compare:(\w+):(\w+)\}\}", lambda m: compare("cmp", [m.group(1), m.group(2)]), text)
     machine = os.path.join(results, "machine.txt")
     text = text.replace("{{machine}}", open(machine).read().strip() if os.path.exists(machine) else "unknown machine")
     text = re.sub(r"\{\{chart:(\w+)\}\}", lambda m: f"![](../results/{m.group(1)}.png)", text)

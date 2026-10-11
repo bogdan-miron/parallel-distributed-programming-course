@@ -22,6 +22,11 @@ def by_config(rows):
     return configs
 
 
+def ms(x):
+    # tiny times need more decimals
+    return f"{x:.4f}" if x < 1 else f"{x:.2f}"
+
+
 def speedup(base, r):
     if base is None or not r["mean_ms"] or float(r["mean_ms"]) == 0:
         return None
@@ -35,7 +40,7 @@ def print_sequential_only(configs):
     for config, items in configs.items():
         for variant, threads, r in items:
             ok = "ok" if r["ok"] == "1" else "FAILED"
-            print(f"| {config} | {float(r['mean_ms']):.2f} | {float(r['min_ms']):.2f} | {float(r['max_ms']):.2f} | {ok} |")
+            print(f"| {config} | {ms(float(r['mean_ms']))} | {ms(float(r['min_ms']))} | {ms(float(r['max_ms']))} | {ok} |")
 
 
 def print_tables(configs):
@@ -51,7 +56,7 @@ def print_tables(configs):
         for variant, threads, r in items:
             s = speedup(base, r)
             ok = "ok" if r["ok"] == "1" else "FAILED"
-            mean = f"{float(r['mean_ms']):.2f}" if r["mean_ms"] else "-"
+            mean = ms(float(r['mean_ms'])) if r["mean_ms"] else "-"
             print(f"| {variant} | {threads} | {mean} | {'-' if s is None else f'{s:.2f}'} | {ok} |")
             if variant != "seq" and s is not None and r["ok"] == "1":
                 if best is None or s > best[0]:
