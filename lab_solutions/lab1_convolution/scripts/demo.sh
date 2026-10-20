@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 # short run for the teacher: a 10 x 10 matrix to look at the numbers, then 1000 x 1000 for the times
 # every run checks output.txt against output_seq.txt
+# LANGS=java runs only the Java program (the default is cpp_static cpp_dynamic java)
 lab=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 data=${PPD_DATA_ROOT:-$HOME/ppd_data}/$(basename "$lab")
 
-make --no-print-directory -C "$lab/cpp" || exit 1
-make --no-print-directory -C "$lab/java" || exit 1
+langs=${LANGS:-"cpp_static cpp_dynamic java"}
+
+case "$langs" in *cpp*) make --no-print-directory -C "$lab/cpp" || exit 1 ;; esac
+case "$langs" in *java*) make --no-print-directory -C "$lab/java" || exit 1 ;; esac
 
 # gen <folder> <n> <m> <k>, makes the input files once
 gen() {
@@ -15,7 +18,15 @@ gen() {
   fi
 }
 
-progs=("C++ static:$lab/cpp/build/main_static" "C++ dynamic:$lab/cpp/build/main_dynamic" "Java:java -Xmx3g -cp $lab/java/build Main")
+progs=()
+for l in $langs; do
+  case $l in
+    cpp_static) progs+=("C++ static:$lab/cpp/build/main_static") ;;
+    cpp_dynamic) progs+=("C++ dynamic:$lab/cpp/build/main_dynamic") ;;
+    java) progs+=("Java:java -Xmx3g -cp $lab/java/build Main") ;;
+    *) echo "unknown language $l"; exit 1 ;;
+  esac
+done
 
 # run <folder> <p> <variant>, prints the time of every implementation and the result of the check
 run() {

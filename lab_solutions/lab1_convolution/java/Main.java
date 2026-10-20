@@ -2,7 +2,7 @@ import java.io.*;
 import java.util.Locale;
 
 // usage: java Main <p> [variant]   p = 0 is the sequential version
-// variants: horizontal, vertical, block, linear, cyclic
+// horizontal, vertical, block, linear, cyclic
 public class Main {
     static int n, m, k;
     static int[][] f, v, c;
