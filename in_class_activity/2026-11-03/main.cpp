@@ -6,6 +6,8 @@
 using namespace std;
 
 #define N 1024
+#define SYNCTAG 100
+#define ITAG 101
 
 void init_rand(double *vec, int len) {
     for (int i = 0; i < len; i++) {
@@ -72,7 +74,59 @@ int main(int argc, char** argv) {
 
     local_res = dot(local_a, local_b, local_N);
 
-    // adunam rezultatele partiale in procesul 0
+    //var 1.1: send + recv
+
+    /*
+    if (rank == 0) {
+        //proc principal / root
+        par_res += local_res;
+        for (int i = 1; i < size; i++) {
+            double aux = 0.0;
+            MPI_Recv(&aux, 1, MPI_DOUBLE, i, SYNCTAG, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+            par_res += aux;
+        }
+    }
+    else {
+        // toate celelalte procese
+        MPI_Ssend(&local_res, 1, MPI_DOUBLE, 0, SYNCTAG, MPI_COMM_WORLD);
+    }
+    */
+
+    //var 1.2 send + Irecv
+
+    /*
+    if (rank == 0) {
+        //proc principal / root
+        MPI_Request * reqs = new MPI_Request[size - 1];
+        double * buf = new double[size - 1];
+
+        for (int i = 1; i < size; i++) {
+            // &buf[i - 1] <=> + i - 1
+            MPI_Irecv(&buf[i - 1], 1, MPI_DOUBLE, i, ITAG, MPI_COMM_WORLD, &reqs[i - 1]);
+        }
+
+        MPI_Waitall(size - 1, reqs, MPI_STATUSES_IGNORE);
+
+        par_res = local_res;
+        for (int i = 1; i < size; i++) {
+            par_res += buf[i - 1];
+        }
+
+        delete [] reqs;
+        delete [] buf;
+    }
+    else {
+        // toate celelalte procese
+        //MPI_Send(&local_res, 1, MPI_DOUBLE, 0, ITAG, MPI_COMM_WORLD);
+
+        //aprox echivalent cu Send
+        MPI_Request req;
+        MPI_Isend(&local_res, 1, MPI_DOUBLE, 0, ITAG, MPI_COMM_WORLD, &req);
+        MPI_Wait(&req, MPI_STATUS_IGNORE);
+    }
+*/
+    // var 2
     MPI_Reduce(&local_res, &par_res, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
     MPI_Barrier(MPI_COMM_WORLD);
