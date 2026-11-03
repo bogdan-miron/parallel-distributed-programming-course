@@ -3,6 +3,7 @@
 #   bash in_class_activity/run.sh new 2026-10-06 [cpp]  makes the folder with a starting Main.java (or main.cpp)
 #   bash in_class_activity/run.sh 2026-10-06 [args]     compiles every .java file in it and runs Main,
 #                                                       or compiles every .cpp file and runs it with time
+#                                                       (a .cpp with mpi.h is built with mpicxx and run with mpirun -np <first arg, default 4>)
 
 base=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
@@ -30,6 +31,12 @@ dir=$base/$1
 [ -d "$dir" ] || { echo "no folder $1"; exit 1; }
 shift
 mkdir -p "$dir/build"
+if grep -qs 'mpi.h' "$dir"/*.cpp; then
+  mpicxx -Wall "$dir"/*.cpp -o "$dir/build/main" || exit 1
+  np=${1:-4}
+  time mpirun $MPIFLAGS -np "$np" "$dir/build/main"
+  exit $?
+fi
 if ls "$dir"/*.cpp >/dev/null 2>&1; then
   g++ -Wall -pthread "$dir"/*.cpp -o "$dir/build/main" || exit 1
   time "$dir/build/main" "$@"

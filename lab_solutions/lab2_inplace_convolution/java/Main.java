@@ -3,8 +3,6 @@ import java.util.Locale;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 
-// convolution with a 3 x 3 kernel done in place: the result ends up in the same matrix, no second matrix
-// the rows are split between p threads
 // usage: java Main <p>   p = 0 is the sequential version
 public class Main {
     static int[][] f;
