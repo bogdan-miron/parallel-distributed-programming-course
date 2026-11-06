@@ -56,9 +56,9 @@ void readDigits(Number& x, digit* out, int count) {
     }
 }
 
-void writeDigits(ofstream& out, const digit* d, int len) {
+void writeDigits(ofstream& out, const digit* d, size_t len) {
     string s(len, '0');
-    for (int i = 0; i < len; i++) s[i] = '0' + d[i];
+    for (size_t i = 0; i < len; i++) s[i] = '0' + d[i];
     out << s;
 }
 
@@ -75,10 +75,6 @@ int addDigits(const digit* a, const digit* b, digit* res, int len, int carry) {
 // digits that worker w (1..workers) gets when n digits are split between the workers
 int chunkSize(int w, int n, int workers) {
     return n / workers + (w - 1 < n % workers ? 1 : 0);
-}
-
-int chunkStart(int w, int n, int workers) {
-    return (w - 1) * (n / workers) + min(w - 1, n % workers);
 }
 
 bool sameFile(const char* f1, const char* f2) {
@@ -130,13 +126,15 @@ void master1(int p) {
     vector<digit> sum;
     for (int w = 1; w <= workers; w++) {
         int len = chunkSize(w, n, workers);
-        // the last process also sends the final carry after its digits
-        int count = (w == workers) ? len + 1 : len;
-        sum.resize(count);
-        MPI_Recv(sum.data(), count, MPI_UNSIGNED_CHAR, w, TAG_SUM, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+        sum.resize(len);
+        MPI_Recv(sum.data(), len, MPI_UNSIGNED_CHAR, w, TAG_SUM, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
         writeDigits(out, sum.data(), len);
-        if (w == workers && sum[len]) out << 1;
     }
+
+    // the carry that leaves the last process is one more digit
+    int last;
+    MPI_Recv(&last, 1, MPI_INT, workers, TAG_FINAL, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    if (last) out << 1;
     out << "\n";
 }
 
@@ -146,7 +144,7 @@ void worker1(int rank, int p) {
     MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
     int workers = p - 1;
     int len = chunkSize(rank, n, workers);
-    vector<digit> a(len), b(len), sum(len + 1);
+    vector<digit> a(len), b(len), sum(len);
 
     MPI_Recv(a.data(), len, MPI_UNSIGNED_CHAR, 0, TAG_A, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     MPI_Recv(b.data(), len, MPI_UNSIGNED_CHAR, 0, TAG_B, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -157,14 +155,13 @@ void worker1(int rank, int p) {
     carry = addDigits(a.data(), b.data(), sum.data(), len, carry);
 
     // the carry goes first, so the next process does not wait for the sum to reach process 0
-    int count = len;
     if (rank < workers) {
         SEND(&carry, 1, MPI_INT, rank + 1, TAG_CARRY, MPI_COMM_WORLD);
-    } else {
-        sum[len] = carry;
-        count = len + 1;
     }
-    SEND(sum.data(), count, MPI_UNSIGNED_CHAR, 0, TAG_SUM, MPI_COMM_WORLD);
+    SEND(sum.data(), len, MPI_UNSIGNED_CHAR, 0, TAG_SUM, MPI_COMM_WORLD);
+    if (rank == workers) {
+        SEND(&carry, 1, MPI_INT, 0, TAG_FINAL, MPI_COMM_WORLD);
+    }
 }
 
 // variant 1.1, processes with id > 0: add first as if the carry was 0, fix the result when the real carry arrives
@@ -173,7 +170,7 @@ void worker11(int rank, int p) {
     MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
     int workers = p - 1;
     int len = chunkSize(rank, n, workers);
-    vector<digit> a(len), b(len), sum(len + 1);
+    vector<digit> a(len), b(len), sum(len);
 
     MPI_Recv(a.data(), len, MPI_UNSIGNED_CHAR, 0, TAG_A, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     MPI_Recv(b.data(), len, MPI_UNSIGNED_CHAR, 0, TAG_B, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -200,14 +197,13 @@ void worker11(int rank, int p) {
     }
     int carryOut = allNines ? carryIn : carry0;
 
-    int count = len;
-    if (rank < workers) {
-        if (allNines) SEND(&carryOut, 1, MPI_INT, rank + 1, TAG_CARRY, MPI_COMM_WORLD);
-    } else {
-        sum[len] = carryOut;
-        count = len + 1;
+    if (rank < workers && allNines) {
+        SEND(&carryOut, 1, MPI_INT, rank + 1, TAG_CARRY, MPI_COMM_WORLD);
     }
-    SEND(sum.data(), count, MPI_UNSIGNED_CHAR, 0, TAG_SUM, MPI_COMM_WORLD);
+    SEND(sum.data(), len, MPI_UNSIGNED_CHAR, 0, TAG_SUM, MPI_COMM_WORLD);
+    if (rank == workers) {
+        SEND(&carryOut, 1, MPI_INT, 0, TAG_FINAL, MPI_COMM_WORLD);
+    }
 }
 
 // variant 2, scatter and gather, process 0 adds too
@@ -244,19 +240,18 @@ void variant2(int rank, int p) {
 
     MPI_Gather(lsum.data(), len, MPI_UNSIGNED_CHAR, sum.data(), len, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
 
-    // the final carry goes after the gather, process 0 is waiting in it for this process
+    // the carry of the last process goes after the gather, process 0 is waiting in it for that process
     if (rank == p - 1) {
         SEND(&carry, 1, MPI_INT, 0, TAG_FINAL, MPI_COMM_WORLD);
     }
-
     if (rank == 0) {
         int last;
         MPI_Recv(&last, 1, MPI_INT, p - 1, TAG_FINAL, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-        // when n was rounded up, the carry is the digit at position n
-        if (total > n) last = last || sum[n];
+        if (last) sum.push_back(1);
+        // the zeros added to reach a multiple of p are not part of the sum
+        while ((int)sum.size() > n && sum.back() == 0) sum.pop_back();
         ofstream out("Numar3.txt");
-        writeDigits(out, sum.data(), n);
-        if (last) out << 1;
+        writeDigits(out, sum.data(), sum.size());
         out << "\n";
     }
 }
@@ -272,7 +267,7 @@ void master3(int p) {
 
     // the buffers have to stay alive until the sends are done
     vector<vector<digit>> a(workers), b(workers);
-    vector<MPI_Request> reqs(3 * workers);
+    vector<MPI_Request> reqs(3 * workers + 1);
     int k = 0;
     for (int w = 1; w <= workers; w++) {
         int len = chunkSize(w, n, workers);
@@ -284,18 +279,20 @@ void master3(int p) {
         MPI_Isend(b[w - 1].data(), len, MPI_UNSIGNED_CHAR, w, TAG_B, MPI_COMM_WORLD, &reqs[k++]);
     }
 
-    // every sum goes straight to its place, the last one brings the final carry at position n
-    vector<digit> sum(n + 1);
+    // every sum goes straight to its place in the result, whatever the order they arrive in
+    vector<digit> sum(n);
+    int start = 0, last = 0;
     for (int w = 1; w <= workers; w++) {
         int len = chunkSize(w, n, workers);
-        int count = (w == workers) ? len + 1 : len;
-        MPI_Irecv(&sum[chunkStart(w, n, workers)], count, MPI_UNSIGNED_CHAR, w, TAG_SUM, MPI_COMM_WORLD, &reqs[k++]);
+        MPI_Irecv(sum.data() + start, len, MPI_UNSIGNED_CHAR, w, TAG_SUM, MPI_COMM_WORLD, &reqs[k++]);
+        start += len;
     }
+    MPI_Irecv(&last, 1, MPI_INT, workers, TAG_FINAL, MPI_COMM_WORLD, &reqs[k++]);
     MPI_Waitall(k, reqs.data(), MPI_STATUSES_IGNORE);
 
     ofstream out("Numar3.txt");
     writeDigits(out, sum.data(), n);
-    if (sum[n]) out << 1;
+    if (last) out << 1;
     out << "\n";
 }
 
@@ -305,7 +302,7 @@ void worker3(int rank, int p) {
     MPI_Bcast(&n, 1, MPI_INT, 0, MPI_COMM_WORLD);
     int workers = p - 1;
     int len = chunkSize(rank, n, workers);
-    vector<digit> a(len), b(len), sum(len + 1);
+    vector<digit> a(len), b(len), sum(len);
     int carry = 0;
 
     MPI_Request in[3];
@@ -319,16 +316,15 @@ void worker3(int rank, int p) {
 
     carry = addDigits(a.data(), b.data(), sum.data(), len, carry);
 
-    MPI_Request out[2];
+    MPI_Request out[3];
     k = 0;
-    int count = len;
     if (rank < workers) {
         MPI_Isend(&carry, 1, MPI_INT, rank + 1, TAG_CARRY, MPI_COMM_WORLD, &out[k++]);
-    } else {
-        sum[len] = carry;
-        count = len + 1;
     }
-    MPI_Isend(sum.data(), count, MPI_UNSIGNED_CHAR, 0, TAG_SUM, MPI_COMM_WORLD, &out[k++]);
+    MPI_Isend(sum.data(), len, MPI_UNSIGNED_CHAR, 0, TAG_SUM, MPI_COMM_WORLD, &out[k++]);
+    if (rank == workers) {
+        MPI_Isend(&carry, 1, MPI_INT, 0, TAG_FINAL, MPI_COMM_WORLD, &out[k++]);
+    }
     MPI_Waitall(k, out, MPI_STATUSES_IGNORE);
 }
 
